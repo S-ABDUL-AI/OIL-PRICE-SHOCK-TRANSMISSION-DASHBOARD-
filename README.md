@@ -104,7 +104,8 @@ oil_contribution = fevd.decomp[debt_idx, :, oil_idx] * 100   # % per period
 ## Repository Structure
 
 ```
-├── app.py                   # Main Streamlit application (all 4 tabs)
+├── app.py                   # Streamlit UI (all 4 tabs)
+├── model.py                 # Data generation, ADF, Johansen, VAR, IRF, FEVD
 ├── requirements.txt         # Runtime dependencies
 └── README.md                # This file
 ```

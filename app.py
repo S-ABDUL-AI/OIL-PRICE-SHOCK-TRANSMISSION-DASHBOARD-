@@ -6,27 +6,27 @@ Methods: VAR, Johansen Cointegration, IRF, FEVD
 Data: Ghana annual time-series 1983–2019 (calibrated synthetic replica)
 """
 
-# ─────────────────────────────────────────────────────────────
-# 1. IMPORTS
-# ─────────────────────────────────────────────────────────────
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import warnings
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
+
+from model import (
+    LEVEL_COLS,
+    LOG_COLS,
+    fit_var_models,
+    generate_ghana_data,
+    run_adf_tests,
+    run_all_johansen,
+)
+
 warnings.filterwarnings("ignore")
 
-try:
-    from statsmodels.tsa.api import VAR
-    from statsmodels.tsa.stattools import adfuller
-    from statsmodels.tsa.vector_ar.vecm import coint_johansen
-    SM_OK = True
-except ImportError:
-    SM_OK = False
-
 # ─────────────────────────────────────────────────────────────
-# 2. PAGE CONFIG
+# PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Oil Price Shock Transmission — Ghana",
@@ -36,7 +36,7 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────────
-# 3. DESIGN TOKENS
+# DESIGN TOKENS
 # ─────────────────────────────────────────────────────────────
 NAVY      = "#0A1F44"
 NAVY_MID  = "#152B5C"
@@ -63,7 +63,7 @@ VAR_COLORS = {
 }
 
 # ─────────────────────────────────────────────────────────────
-# 4. CSS
+# CSS
 # ─────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
@@ -71,7 +71,6 @@ st.markdown(f"""
   html, body, [class*="css"] {{
     font-family: 'Source Sans 3', sans-serif; background:{OFF_WHITE};
   }}
-  /* hero */
   .hero-wrap {{
     background: linear-gradient(135deg,{NAVY} 0%,{NAVY_MID} 65%,#1E3A6E 100%);
     border-left: 6px solid {GOLD}; border-radius: 6px;
@@ -82,30 +81,25 @@ st.markdown(f"""
   .hero-title {{ font-size:26px; font-weight:700; color:#FFFFFF;
                  line-height:1.3; margin-bottom:10px; }}
   .hero-sub   {{ font-size:13.5px; color:#B0BFD8; line-height:1.65; max-width:860px; }}
-  /* labels */
   .sec-lbl {{ font-size:10px; font-weight:700; letter-spacing:2px;
               color:{GOLD}; text-transform:uppercase; margin-bottom:3px; }}
   .sec-ttl {{ font-size:19px; font-weight:700; color:{NAVY}; margin-bottom:3px; }}
   .sec-sub {{ font-size:13px; color:{MUTED}; margin-bottom:14px; }}
-  /* KPI card */
   .kpi-card  {{ background:#FFFFFF; border:1px solid {RULE};
                 border-top:3px solid {NAVY}; border-radius:4px; padding:14px 18px; }}
   .kpi-label {{ font-size:10px; font-weight:700; letter-spacing:1px;
                 color:{MUTED}; text-transform:uppercase; margin-bottom:3px; }}
   .kpi-val   {{ font-size:24px; font-weight:700; color:{NAVY}; line-height:1.1; }}
   .kpi-sub   {{ font-size:11px; color:{MUTED}; margin-top:2px; }}
-  /* finding card */
   .finding   {{ background:#FFFFFF; border:1px solid {RULE};
                 border-left:4px solid {GOLD}; border-radius:4px;
                 padding:14px 18px; margin-bottom:10px; }}
   .finding-h {{ font-size:12px; font-weight:700; color:{NAVY}; margin-bottom:4px; }}
   .finding-b {{ font-size:13px; color:{BODY}; line-height:1.6; }}
-  /* scope note */
   .scope-box {{ background:#FFFBF0; border:1px solid {AMBER};
                 border-left:4px solid {AMBER}; border-radius:4px;
                 padding:9px 14px; font-size:11.5px; color:{AMBER};
                 margin-bottom:18px; }}
-  /* brief cards */
   .brief-navy {{ background:#F0F4FF; border:1px solid #C4D0F5;
                  border-left:4px solid {NAVY}; border-radius:4px;
                  padding:14px 16px; }}
@@ -118,7 +112,6 @@ st.markdown(f"""
   .brief-head {{ font-size:10px; font-weight:700; letter-spacing:2px;
                  text-transform:uppercase; margin-bottom:6px; }}
   .brief-body {{ font-size:13px; color:{BODY}; line-height:1.6; }}
-  /* table */
   .result-tbl {{ width:100%; border-collapse:collapse; font-size:12.5px; }}
   .result-tbl th {{ background:{NAVY}; color:{GOLD}; font-weight:700;
                     padding:8px 12px; text-align:left; }}
@@ -126,11 +119,9 @@ st.markdown(f"""
   .result-tbl tr:nth-child(even) td {{ background:#F8F9FC; }}
   .sig-yes {{ color:{GREEN}; font-weight:700; }}
   .sig-no  {{ color:{RED};   font-weight:700; }}
-  /* footer */
   .byline {{ background:{NAVY}; border-radius:4px; padding:16px 22px;
              font-size:11.5px; color:#B0BFD8; line-height:1.8; margin-top:28px; }}
   .byline a {{ color:{GOLD}; text-decoration:none; }}
-  /* tabs */
   button[data-baseweb="tab"] {{
     font-weight:600 !important; font-size:13px !important; color:{NAVY} !important;
   }}
@@ -141,224 +132,32 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────
-# 5. DATA GENERATION
-# ─────────────────────────────────────────────────────────────
-@st.cache_data
-def get_ghana_data():
-    """
-    Calibrated synthetic replica of Ghana annual macro data 1983–2019.
-
-    DGP design (validated):
-    - All variables I(1): ADF fails to reject at level; rejects on first difference.
-    - Public debt & external debt each share a cointegrating vector with oil price
-      (Johansen trace, 5% level).
-    - Domestic debt is an independent I(1) process (pure random walk).
-    - Public debt IRF to oil shock: negative in periods 1–4 then recovers
-      — consistent with thesis finding (oil shock → improved terms of trade →
-      temporary fiscal space → reduced borrowing → debt falls before oil import
-      costs dominate).
-    - FEVD: oil explains ~2–8% of public debt variance and ~3–7% of external
-      debt variance at horizon 10 — consistent with thesis benchmarks of
-      ~1.4% and ~4.4% respectively.
-
-    Seed and parameters found via systematic validation grid (seed=13, φ=0.45).
-    Full numerical replication requires the original IMF / World Bank dataset.
-    """
-    np.random.seed(13)
-    years = np.arange(1983, 2020)
-    n = len(years)  # 37
-
-    # ── approximate Brent crude historical prices (USD/barrel)
-    oil_raw = np.array([
-        29.5, 28.1, 27.5, 14.4, 18.4, 16.8, 14.9, 17.9, 18.6, 22.3,
-        19.5, 18.6, 20.0, 15.9, 12.7, 17.9, 28.5, 24.1, 25.0, 28.9,
-        31.0, 38.3, 54.5, 65.1, 72.4, 98.5, 62.0, 79.6, 111.3, 111.9,
-        111.6, 108.7, 99.0, 52.4, 44.0, 54.2, 64.3
-    ])
-    log_oil = np.log(oil_raw)
-
-    # ── public debt: log_pub = β_pub*log_oil + AR(1) error + intercept
-    # β_pub < 0 → negative cointegrating relationship (oil↑ → debt↓ short-run)
-    phi = 0.45
-    ec_pub = np.zeros(n)
-    for t in range(1, n):
-        ec_pub[t] = phi * ec_pub[t - 1] + np.random.normal(0, 0.04)
-    log_public_debt = -0.35 * log_oil + ec_pub + 5.2
-
-    # ── external debt: log_ext = β_ext*log_oil + AR(1) error + intercept
-    # β_ext > 0 → positive cointegrating relationship (oil↑ → ext debt↑)
-    ec_ext = np.zeros(n)
-    for t in range(1, n):
-        ec_ext[t] = phi * ec_ext[t - 1] + np.random.normal(0, 0.03)
-    log_external_debt = 0.30 * log_oil + ec_ext + 2.3
-
-    # ── domestic debt: pure random walk — no oil cointegration
-    log_domestic_debt = np.zeros(n)
-    log_domestic_debt[0] = 3.5
-    for t in range(1, n):
-        log_domestic_debt[t] = log_domestic_debt[t - 1] + np.random.normal(0, 0.04)
-
-    # ── inflation: declining random walk (high 1980s → low 2010s)
-    log_inflation = np.zeros(n)
-    log_inflation[0] = 4.8
-    for t in range(1, n):
-        log_inflation[t] = log_inflation[t - 1] + np.random.normal(-0.070, 0.08)
-
-    # ── REER: depreciating random walk
-    log_reer = np.zeros(n)
-    log_reer[0] = 5.1
-    for t in range(1, n):
-        log_reer[t] = log_reer[t - 1] + np.random.normal(-0.025, 0.04)
-
-    # ── interest rate: declining random walk (high 1990s → moderate 2010s)
-    log_interest = np.zeros(n)
-    log_interest[0] = 3.2
-    for t in range(1, n):
-        log_interest[t] = log_interest[t - 1] + np.random.normal(-0.015, 0.05)
-
-    # ── convert back to levels for display
-    df_levels = pd.DataFrame({
-        "public_debt":   np.exp(log_public_debt) * 100,
-        "domestic_debt": np.exp(log_domestic_debt) * 100,
-        "external_debt": np.exp(log_external_debt) * 100,
-        "oil_price":     oil_raw,
-        "inflation":     np.exp(log_inflation),
-        "reer":          np.exp(log_reer),
-        "interest_rate": np.exp(log_interest),
-    }, index=years)
-
-    df_log = pd.DataFrame({
-        "log_pub":  log_public_debt,
-        "log_ext":  log_external_debt,
-        "log_dom":  log_domestic_debt,
-        "log_oil":  log_oil,
-        "log_infl": log_inflation,
-        "log_reer": log_reer,
-        "log_ir":   log_interest,
-    }, index=years)
-
-    return df_levels, df_log
-
 
 # ─────────────────────────────────────────────────────────────
-# 6. ECONOMETRIC FUNCTIONS
+# CACHED MODEL CALLS
 # ─────────────────────────────────────────────────────────────
 @st.cache_data
-def run_adf_battery(log_data_tuple):
-    """ADF unit root tests on levels and first differences for all 7 variables."""
-    df_log = pd.DataFrame(log_data_tuple[1])
-    var_labels = {
-        "log_pub":  "Public Debt (log)",
-        "log_ext":  "External Debt (log)",
-        "log_dom":  "Domestic Debt (log)",
-        "log_oil":  "Oil Price (log)",
-        "log_infl": "Inflation (log)",
-        "log_reer": "REER (log)",
-        "log_ir":   "Interest Rate (log)",
-    }
-    rows = []
-    for col, label in var_labels.items():
-        ser = df_log[col].dropna().values
-        # ADF on levels
-        lvl = adfuller(ser, autolag="AIC")
-        # ADF on first differences
-        dif = adfuller(np.diff(ser), autolag="AIC")
-        rows.append({
-            "Variable":          label,
-            "ADF (Level)":       round(lvl[0], 3),
-            "p (Level)":         round(lvl[1], 4),
-            "I(0)?":             "Yes" if lvl[1] < 0.05 else "No",
-            "ADF (Δ)":           round(dif[0], 3),
-            "p (Δ)":             round(dif[1], 4),
-            "I(1)?":             "Yes" if dif[1] < 0.05 else "No",
-        })
-    return pd.DataFrame(rows)
+def load_data(seed=13):
+    return generate_ghana_data(seed)
 
 
 @st.cache_data
-def run_johansen_battery(log_data_tuple):
-    """Johansen cointegration tests for the three debt models."""
-    df_log = pd.DataFrame(log_data_tuple[1])
-    results = {}
-    models = {
-        "Public Debt":   ["log_pub",  "log_oil", "log_infl", "log_reer", "log_ir"],
-        "External Debt": ["log_ext",  "log_oil", "log_infl", "log_reer", "log_ir"],
-        "Domestic Debt": ["log_dom",  "log_oil", "log_infl", "log_reer", "log_ir"],
-    }
-    for name, cols in models.items():
-        data = df_log[cols].dropna().values
-        joh  = coint_johansen(data, det_order=0, k_ar_diff=1)
-        n_cv = sum(joh.lr1 > joh.cvt[:, 1])   # at 5%
-        trace_rows = []
-        for i in range(min(3, len(joh.lr1))):
-            trace_rows.append({
-                "H₀: rank ≤ r": i,
-                "Trace Statistic": round(joh.lr1[i], 3),
-                "5% Critical Value": round(joh.cvt[i, 1], 3),
-                "Max-Eigen Stat":   round(joh.lr2[i], 3),
-                "5% CV (Max-Eigen)": round(joh.cvm[i, 1], 3),
-                "Reject H₀?":       "Yes ✓" if joh.lr1[i] > joh.cvt[i, 1] else "No",
-            })
-        results[name] = {
-            "cointegrating_vectors": n_cv,
-            "trace_table":           pd.DataFrame(trace_rows),
-            "eigenvectors":          joh.evec,
-        }
-    return results
+def cached_adf(df_log):
+    return run_adf_tests(df_log)
 
 
 @st.cache_data
-def run_var_suite(log_data_tuple, max_lags=2):
-    """Fit VAR(p) for all three models; extract orthogonalized IRF and FEVD."""
-    df_log = pd.DataFrame(log_data_tuple[1])
-    out = {}
-    configs = {
-        "Public Debt":   ("log_pub",  ["log_pub",  "log_oil", "log_infl", "log_reer", "log_ir"]),
-        "External Debt": ("log_ext",  ["log_ext",  "log_oil", "log_infl", "log_reer", "log_ir"]),
-        "Domestic Debt": ("log_dom",  ["log_dom",  "log_oil", "log_infl", "log_reer", "log_ir"]),
-    }
-    for model_name, (debt_col, cols) in configs.items():
-        df_m = df_log[cols].dropna()
-        var_fit = VAR(df_m).fit(maxlags=max_lags, ic="aic")
-        irf_obj  = var_fit.irf(10)
-        fevd_obj = var_fit.fevd(10)
-        oil_idx  = 1   # oil is always column 1 in our ordering
-        debt_idx = 0   # debt variable is always column 0
+def cached_johansen(df_log):
+    return run_all_johansen(df_log)
 
-        # Orthogonalized IRF: response of debt to +1 SD oil shock
-        orth_irfs = irf_obj.orth_irfs[:, debt_idx, oil_idx]   # shape (11,)
 
-        # Approximate 90% CI via asymptotic stderr on orth IRF
-        # Scale is residual std × sqrt(period) heuristic (visual guide only)
-        resid_std = np.std(np.asarray(var_fit.resid)[:, debt_idx])
-        ci_half   = resid_std * np.sqrt(np.arange(11)) * 0.30
-        ci_upper  = orth_irfs + ci_half
-        ci_lower  = orth_irfs - ci_half
-
-        # FEVD: % of debt variance from oil, all periods
-        # decomp shape: (neqs, nperiods, neqs) → [debt_idx, :, oil_idx]
-        fevd_from_oil = fevd_obj.decomp[debt_idx, :, oil_idx] * 100   # convert to %
-        # Full FEVD breakdown at period 10 (last)
-        fevd_final = fevd_obj.decomp[debt_idx, -1, :] * 100
-
-        out[model_name] = {
-            "var_results":   var_fit,
-            "lag_order":     var_fit.k_ar,
-            "aic":           round(var_fit.aic, 3),
-            "bic":           round(var_fit.bic, 3),
-            "orth_irfs":     orth_irfs,
-            "ci_upper":      ci_upper,
-            "ci_lower":      ci_lower,
-            "fevd_oil":      fevd_from_oil,
-            "fevd_final":    fevd_final,
-            "var_names":     cols,
-        }
-    return out
+@st.cache_data
+def cached_var(df_log, max_lags, irf_horizon):
+    return fit_var_models(df_log, max_lags=max_lags, irf_periods=irf_horizon)
 
 
 # ─────────────────────────────────────────────────────────────
-# 7. CHART HELPERS
+# CHART HELPERS
 # ─────────────────────────────────────────────────────────────
 def navy_layout(height=320, margin=None, **kw):
     m = margin or dict(t=30, b=40, l=50, r=20)
@@ -374,19 +173,15 @@ def navy_layout(height=320, margin=None, **kw):
 
 def irf_chart(orth_irfs, ci_upper, ci_lower, title, color=NAVY,
               debt_label="Debt", oil_label="Oil Price"):
-    """Plotly IRF chart with shaded confidence band and zero line."""
     periods = list(range(len(orth_irfs)))
     fig = go.Figure()
-    # CI band
     fig.add_trace(go.Scatter(
         x=periods + periods[::-1],
         y=list(ci_upper) + list(ci_lower[::-1]),
-        fill="toself", fillcolor=f"rgba(10,31,68,0.12)",
+        fill="toself", fillcolor="rgba(10,31,68,0.12)",
         line=dict(width=0), showlegend=True, name="90% CI (approx.)",
     ))
-    # Zero line
     fig.add_hline(y=0, line=dict(color=RULE, width=1.5, dash="dot"))
-    # Point estimate
     fig.add_trace(go.Scatter(
         x=periods, y=orth_irfs,
         mode="lines+markers",
@@ -394,7 +189,6 @@ def irf_chart(orth_irfs, ci_upper, ci_lower, title, color=NAVY,
         marker=dict(size=7, color=color),
         name=f"Response of {debt_label}",
     ))
-    # Annotate period of most negative response
     min_idx = int(np.argmin(orth_irfs))
     if orth_irfs[min_idx] < 0:
         fig.add_annotation(
@@ -414,14 +208,8 @@ def irf_chart(orth_irfs, ci_upper, ci_lower, title, color=NAVY,
 
 
 def fevd_stacked_bar(fevd_all_vars, var_names, title, highlight_oil=True):
-    """
-    fevd_all_vars: list of 10-element arrays (one per period), each summing to 100.
-    var_names: list of variable name strings matching VAR order.
-    """
     periods = list(range(1, 11))
-    colors_list = [
-        GOLD, NAVY, TEAL, "#7C3AED", "#059669", "#B45309", "#6B7280"
-    ]
+    colors_list = [GOLD, NAVY, TEAL, "#7C3AED", "#059669", "#B45309", "#6B7280"]
     fig = go.Figure()
     for j, vname in enumerate(var_names):
         vals = [fevd_all_vars[t][j] for t in range(10)]
@@ -429,10 +217,7 @@ def fevd_stacked_bar(fevd_all_vars, var_names, title, highlight_oil=True):
         lcolor = colors_list[j % len(colors_list)]
         if "oil" in vname.lower() and highlight_oil:
             lcolor = RED
-        fig.add_trace(go.Bar(
-            name=label, x=periods, y=vals,
-            marker_color=lcolor,
-        ))
+        fig.add_trace(go.Bar(name=label, x=periods, y=vals, marker_color=lcolor))
     fig.update_layout(
         barmode="stack",
         **navy_layout(height=300),
@@ -447,7 +232,7 @@ def fevd_stacked_bar(fevd_all_vars, var_names, title, highlight_oil=True):
 
 
 # ─────────────────────────────────────────────────────────────
-# 8. SIDEBAR
+# SIDEBAR
 # ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"""
@@ -489,19 +274,20 @@ with st.sidebar:
 
 
 # ─────────────────────────────────────────────────────────────
-# 9. LOAD DATA & RUN MODELS
+# LOAD DATA & RUN MODELS
 # ─────────────────────────────────────────────────────────────
-df_levels, df_log = get_ghana_data()
-# Convert DataFrames to tuples for caching
-log_tuple = (df_log.index.tolist(), df_log.to_dict("list"))
+df = load_data()
+df_levels = df[LEVEL_COLS]
+df_log = df[LOG_COLS]
 
 with st.spinner("Running VAR models, cointegration tests, IRF & FEVD…"):
-    adf_results  = run_adf_battery(log_tuple)
-    joh_results  = run_johansen_battery(log_tuple)
-    var_results  = run_var_suite(log_tuple, max_lags=max_lags_ui)
+    adf_results  = cached_adf(df_log)
+    joh_results  = cached_johansen(df_log)
+    var_results  = cached_var(df_log, max_lags_ui, irf_horizon)
+
 
 # ─────────────────────────────────────────────────────────────
-# 10. HERO BANNER
+# HERO BANNER
 # ─────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="hero-wrap">
@@ -534,7 +320,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
-# 11. KEY FINDINGS KPI ROW
+# KEY FINDINGS KPI ROW
 # ─────────────────────────────────────────────────────────────
 pub_fevd_10  = round(var_results["Public Debt"]["fevd_oil"][-1], 1)
 ext_fevd_10  = round(var_results["External Debt"]["fevd_oil"][-1], 1)
@@ -544,7 +330,7 @@ joh_pub_r    = joh_results["Public Debt"]["cointegrating_vectors"]
 joh_ext_r    = joh_results["External Debt"]["cointegrating_vectors"]
 joh_dom_r    = joh_results["Domestic Debt"]["cointegrating_vectors"]
 
-c1,c2,c3,c4,c5 = st.columns(5)
+c1, c2, c3, c4, c5 = st.columns(5)
 for col, label, val, sub in [
     (c1, "Oil → Public Debt",   f"{pub_fevd_10:.1f}%", "of variance (FEVD, P10)"),
     (c2, "Oil → External Debt", f"{ext_fevd_10:.1f}%", "of variance (FEVD, P10)"),
@@ -564,7 +350,7 @@ for col, label, val, sub in [
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
-# 12. MAIN TABS
+# MAIN TABS
 # ─────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊  Ghana Macro Overview",
@@ -572,6 +358,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "📈  Impulse Response Functions",
     "📉  Variance Decomposition",
 ])
+
+years = df_levels.index.tolist()
 
 # ═════════════════════════════════════════════════════════════
 # TAB 1 — GHANA MACRO OVERVIEW
@@ -581,9 +369,6 @@ with tab1:
     st.markdown('<div class="sec-ttl">Annual macroeconomic series, 1983–2019</div>', unsafe_allow_html=True)
     st.markdown('<div class="sec-sub">All series shown in levels. Tick \'Log scale\' in each chart for log levels used in VAR estimation.</div>', unsafe_allow_html=True)
 
-    years = df_levels.index.tolist()
-
-    # ── Oil price chart with annotated shocks ──────────────
     st.markdown('<div class="sec-lbl" style="margin-top:4px;">Exhibit 1 — Oil Price History with Major Shocks</div>', unsafe_allow_html=True)
     fig_oil = go.Figure()
     fig_oil.add_trace(go.Scatter(
@@ -592,7 +377,6 @@ with tab1:
         line=dict(color=RED, width=2.5),
         fill="tozeroy", fillcolor="rgba(200,56,42,0.08)",
     ))
-    # annotate key shock events
     shocks = [
         (1986, "1986\nOPEC collapse"),
         (1990, "1990–91\nGulf War"),
@@ -617,7 +401,6 @@ with tab1:
     )
     st.plotly_chart(fig_oil, use_container_width=True)
 
-    # ── Debt variables panel ────────────────────────────────
     st.markdown('<div class="sec-lbl" style="margin-top:6px;">Exhibit 2 — Public, External & Domestic Debt (% of GDP)</div>', unsafe_allow_html=True)
     fig_debt = go.Figure()
     for col, label, color in [
@@ -638,7 +421,6 @@ with tab1:
     )
     st.plotly_chart(fig_debt, use_container_width=True)
 
-    # ── Macro conditions panel ──────────────────────────────
     st.markdown('<div class="sec-lbl" style="margin-top:6px;">Exhibit 3 — Macro Conditions: Inflation, REER & Interest Rate</div>', unsafe_allow_html=True)
     fig_macro = make_subplots(rows=1, cols=3,
                                subplot_titles=["Inflation (%)",
@@ -663,12 +445,10 @@ with tab1:
         fig_macro.update_layout(**{ax: dict(showgrid=False, zeroline=False)})
     st.plotly_chart(fig_macro, use_container_width=True)
 
-    # ── correlation heatmap ─────────────────────────────────
     st.markdown('<div class="sec-lbl" style="margin-top:6px;">Exhibit 4 — Pairwise Correlation (log levels)</div>', unsafe_allow_html=True)
-    df_log_disp = pd.DataFrame(log_tuple[1])
-    corr = df_log_disp.rename(columns={
-        "log_pub":"Pub. Debt","log_ext":"Ext. Debt","log_dom":"Dom. Debt",
-        "log_oil":"Oil","log_infl":"Inflation","log_reer":"REER","log_ir":"Interest",
+    corr = df_log.rename(columns={
+        "log_pub": "Pub. Debt", "log_ext": "Ext. Debt", "log_dom": "Dom. Debt",
+        "log_oil": "Oil", "log_infl": "Inflation", "log_reer": "REER", "log_ir": "Interest",
     }).corr()
     fig_corr = go.Figure(go.Heatmap(
         z=corr.values, x=corr.columns.tolist(), y=corr.columns.tolist(),
@@ -684,7 +464,6 @@ with tab1:
     )
     st.plotly_chart(fig_corr, use_container_width=True)
 
-    # findings cards
     st.markdown('<div class="sec-lbl" style="margin-top:10px;">Key Observation</div>', unsafe_allow_html=True)
     obs1, obs2 = st.columns(2)
     with obs1:
@@ -720,10 +499,8 @@ with tab2:
     st.markdown('<div class="sec-ttl">ADF tests confirm I(1); Johansen detects cointegrating vectors</div>', unsafe_allow_html=True)
     st.markdown('<div class="sec-sub">Prerequisite for VECM/VAR: all variables integrated of order 1 (I(1)); at least one cointegrating vector in each model.</div>', unsafe_allow_html=True)
 
-    # ── ADF results table ───────────────────────────────────
     st.markdown('<div class="sec-lbl" style="margin-top:4px;">Panel A — Augmented Dickey-Fuller Unit Root Tests</div>', unsafe_allow_html=True)
 
-    # Build HTML table
     html_rows = ""
     for _, row in adf_results.iterrows():
         i0_cls  = "sig-yes" if row["I(0)?"] == "Yes" else "sig-no"
@@ -762,16 +539,14 @@ with tab2:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── ADF visual: first differences ──────────────────────
     st.markdown('<div class="sec-lbl">Visual Check — First Differences of Key Variables</div>', unsafe_allow_html=True)
-    df_log_df = pd.DataFrame(log_tuple[1], index=years)
     fig_diff = go.Figure()
     for col, label, color in [
         ("log_pub",  "Δ log Public Debt",  NAVY),
         ("log_ext",  "Δ log External Debt", GOLD),
         ("log_oil",  "Δ log Oil Price",    RED),
     ]:
-        diff_series = df_log_df[col].diff().dropna()
+        diff_series = df_log[col].diff().dropna()
         fig_diff.add_trace(go.Scatter(
             x=diff_series.index.tolist(), y=diff_series.values,
             mode="lines", name=label,
@@ -787,7 +562,6 @@ with tab2:
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
-    # ── Johansen cointegration ──────────────────────────────
     st.markdown('<div class="sec-lbl" style="margin-top:6px;">Panel B — Johansen Cointegration Tests (Trace & Max-Eigenvalue)</div>', unsafe_allow_html=True)
 
     joh_c1, joh_c2, joh_c3 = st.columns(3)
@@ -843,7 +617,6 @@ with tab2:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # interpretation cards
     st.markdown('<div class="sec-lbl">Interpretation</div>', unsafe_allow_html=True)
     i1, i2, i3 = st.columns(3)
     with i1:
@@ -888,7 +661,6 @@ with tab3:
     st.markdown('<div class="sec-ttl">How does each debt type respond to a +1 SD oil price shock?</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="sec-sub">Orthogonalized IRF (Cholesky decomposition) · {irf_horizon}-period horizon · Shaded band = 90% approximate CI</div>', unsafe_allow_html=True)
 
-    # ── Three IRF charts in a row ───────────────────────────
     irf_col1, irf_col2, irf_col3 = st.columns(3)
 
     for col_obj, model_name, color, label in [
@@ -910,7 +682,6 @@ with tab3:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── IRF value table ─────────────────────────────────────
     st.markdown('<div class="sec-lbl">IRF Values by Period</div>', unsafe_allow_html=True)
     periods_list = list(range(irf_horizon + 1))
     irf_table = pd.DataFrame({
@@ -920,7 +691,6 @@ with tab3:
         "Domestic Debt": [round(v, 5) for v in var_results["Domestic Debt"]["orth_irfs"][:irf_horizon + 1]],
     }).set_index("Period")
 
-    # color-code negative values
     def color_neg(val):
         color = "color: #C8382A;" if isinstance(val, float) and val < 0 else "color: #1A7A2E;"
         return color
@@ -929,7 +699,6 @@ with tab3:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Combined overlay chart ──────────────────────────────
     st.markdown('<div class="sec-lbl">Exhibit — All Three Responses Overlaid</div>', unsafe_allow_html=True)
     fig_overlay = go.Figure()
     fig_overlay.add_hline(y=0, line=dict(color=RULE, width=1.5, dash="dot"))
@@ -956,7 +725,6 @@ with tab3:
     )
     st.plotly_chart(fig_overlay, use_container_width=True)
 
-    # ── Interpretation ──────────────────────────────────────
     st.markdown('<div class="sec-lbl" style="margin-top:4px;">Economic Interpretation</div>', unsafe_allow_html=True)
     ec1, ec2, ec3 = st.columns(3)
     with ec1:
@@ -1003,17 +771,6 @@ with tab4:
     st.markdown('<div class="sec-ttl">What share of debt forecast variance is explained by oil price shocks?</div>', unsafe_allow_html=True)
     st.markdown('<div class="sec-sub">FEVD from orthogonalized VAR. Bars show cumulative contribution of each variable across 10 forecast periods.</div>', unsafe_allow_html=True)
 
-    var_display_names = {
-        "log_pub":  "Public Debt",
-        "log_ext":  "External Debt",
-        "log_dom":  "Domestic Debt",
-        "log_oil":  "Oil Price ★",
-        "log_infl": "Inflation",
-        "log_reer": "REER",
-        "log_ir":   "Interest Rate",
-    }
-
-    # ── FEVD evolution charts ───────────────────────────────
     fv1, fv2, fv3 = st.columns(3)
     for col_obj, model_name, color in [
         (fv1, "Public Debt",   NAVY),
@@ -1022,13 +779,11 @@ with tab4:
     ]:
         res = var_results[model_name]
         var_names_model = res["var_names"]
-        # Build FEVD array: list of 10 arrays, each (n_vars,)
         fevd_all = []
         for t in range(10):
-            row = [var_results[model_name]["var_results"].fevd(10).decomp[0, t, j] * 100
+            row = [res["var_results"].fevd(10).decomp[0, t, j] * 100
                    for j in range(len(var_names_model))]
             fevd_all.append(row)
-        friendly = [var_display_names.get(v, v) for v in var_names_model]
         with col_obj:
             st.plotly_chart(
                 fevd_stacked_bar(fevd_all, var_names_model,
@@ -1036,8 +791,7 @@ with tab4:
                                  highlight_oil=True),
                 use_container_width=True,
             )
-            # oil contribution line
-            oil_line = [r[1] for r in fevd_all]  # oil is index 1
+            oil_line = [r[1] for r in fevd_all]
             fig_oil_line = go.Figure()
             fig_oil_line.add_trace(go.Scatter(
                 x=list(range(1, 11)), y=oil_line,
@@ -1056,7 +810,6 @@ with tab4:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Comparison table: oil contribution at period 10 ─────
     st.markdown('<div class="sec-lbl">Summary — Oil Price Contribution to Debt Variance at Horizon 10</div>', unsafe_allow_html=True)
     summary_data = {
         "Debt Model":        ["Public Debt",    "External Debt",  "Domestic Debt"],
@@ -1083,15 +836,14 @@ with tab4:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Own shock dominance chart ────────────────────────────
     st.markdown('<div class="sec-lbl">Exhibit — Own Shock vs Oil Shock vs All Others (Period 10)</div>', unsafe_allow_html=True)
     fig_share = go.Figure()
     categories = ["Public Debt", "External Debt", "Domestic Debt"]
     own_vals, oil_vals, other_vals = [], [], []
     for model_name in categories:
-        final = var_results[model_name]["fevd_final"]  # length n_vars
-        own_vals.append(round(final[0], 1))             # own shock = index 0
-        oil_vals.append(round(final[1], 1))             # oil = index 1
+        final = var_results[model_name]["fevd_final"]
+        own_vals.append(round(final[0], 1))
+        oil_vals.append(round(final[1], 1))
         other_vals.append(round(100 - final[0] - final[1], 1))
 
     fig_share.add_trace(go.Bar(name="Own Shock", x=categories, y=own_vals,
@@ -1113,7 +865,6 @@ with tab4:
     )
     st.plotly_chart(fig_share, use_container_width=True)
 
-    # ── Policy interpretation ────────────────────────────────
     st.markdown('<div class="sec-lbl" style="margin-top:6px;">Policy Interpretation</div>', unsafe_allow_html=True)
     p1, p2 = st.columns(2)
     with p1:
@@ -1144,7 +895,7 @@ with tab4:
 
 
 # ─────────────────────────────────────────────────────────────
-# 13. FOOTER BYLINE
+# FOOTER BYLINE
 # ─────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="byline">
