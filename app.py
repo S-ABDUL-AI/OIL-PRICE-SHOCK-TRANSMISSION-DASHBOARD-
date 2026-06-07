@@ -266,12 +266,6 @@ with st.sidebar:
     show_orth    = st.checkbox("Orthogonalized IRF (Cholesky)", value=True)
     show_ci      = st.checkbox("Show confidence bands", value=True)
 
-    st.markdown("---")
-    st.caption(
-        "Built by [Sherriff Abdul-Hamid](https://poverty360.org)  \n"
-        "github.com/S-ABDUL-AI"
-    )
-
 
 # ─────────────────────────────────────────────────────────────
 # LOAD DATA & RUN MODELS
@@ -895,25 +889,16 @@ with tab4:
 
 
 # ─────────────────────────────────────────────────────────────
-# FOOTER BYLINE
+# FOOTER
 # ─────────────────────────────────────────────────────────────
-st.markdown(f"""
-<div class="byline">
-  <strong style="color:{GOLD};">Built by Sherriff Abdul-Hamid</strong> — Development economist
-  and data scientist specializing in energy economics, government analytics, and
-  decision-support tools for policy and investment decisions.<br>
-  MSc Economics (Econometrics), KNUST · Harvard Business School Senior Executive Program ·
-  USAID · UNDP · UKAID · Obama Foundation Leaders Award (Top 1.3%) ·
-  Mandela Washington Fellow (Top 0.3%)<br><br>
-  <strong style="color:{GOLD};">Related portfolio tools:</strong> &nbsp;
-  <a href="https://smart-resource-allocation-dashboard-eudzw5r2f9pbu4qyw3psez.streamlit.app">
-    Public Budget Allocation</a> &nbsp;·&nbsp;
-  <a href="https://chpghrwawmvddoquvmniwm.streamlit.app">Medicaid Access Monitor</a> &nbsp;·&nbsp;
-  <a href="https://povertyearlywarningsystem-7rrmkktbi7bwha2nna8gk7.streamlit.app">Safety Net Monitor</a>
-  &nbsp;·&nbsp;
-  <a href="https://impact-allocation-engine-ahxxrbgwmvyapwmifahk2b.streamlit.app">GovFund Engine</a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/S-ABDUL-AI">GitHub</a> &nbsp;·&nbsp;
-  <a href="https://www.linkedin.com/in/abdul-hamid-sherriff-08583354/">LinkedIn</a>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("---")
+st.markdown(
+    "<div style='text-align:center; color:#666; font-size:0.85rem; padding:10px 0;'>"
+    "<strong>Sherriff Abdul-Hamid</strong><br>"
+    "Data Scientist · Energy Economist · Development Economics Research<br>"
+    "<a href='https://poverty360.org' target='_blank'>poverty360.org</a> · "
+    "<a href='https://www.linkedin.com/in/abdul-hamid-sherriff-08583354/' target='_blank'>LinkedIn</a> · "
+    "<a href='https://github.com/S-ABDUL-AI' target='_blank'>GitHub</a>"
+    "</div>",
+    unsafe_allow_html=True,
+)
