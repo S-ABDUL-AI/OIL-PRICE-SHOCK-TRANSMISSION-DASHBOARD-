@@ -331,7 +331,7 @@ def run_var_suite(log_data_tuple, max_lags=2):
 
         # Approximate 90% CI via asymptotic stderr on orth IRF
         # Scale is residual std × sqrt(period) heuristic (visual guide only)
-        resid_std = np.std(var_fit.resid[:, debt_idx])
+        resid_std = np.std(np.asarray(var_fit.resid)[:, debt_idx])
         ci_half   = resid_std * np.sqrt(np.arange(11)) * 0.30
         ci_upper  = orth_irfs + ci_half
         ci_lower  = orth_irfs - ci_half
