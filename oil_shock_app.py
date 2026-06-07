@@ -482,16 +482,10 @@ with st.sidebar:
     show_ci      = st.checkbox("Show confidence bands", value=True)
 
     st.markdown("---")
-    st.markdown(f"""
-    <div style="font-size:11px;color:{MUTED};line-height:1.7;">
-      <strong>Sherriff Abdul-Hamid</strong><br>
-      MSc Economics · KNUST 2022<br>
-      USAID · UNDP · Obama Foundation<br><br>
-      <a href="https://github.com/S-ABDUL-AI" style="color:{GOLD};">GitHub</a> ·
-      <a href="https://www.linkedin.com/in/abdul-hamid-sherriff-08583354/"
-         style="color:{GOLD};">LinkedIn</a>
-    </div>
-    """, unsafe_allow_html=True)
+    st.caption(
+        "Built by [Sherriff Abdul-Hamid](https://poverty360.org)  \n"
+        "github.com/S-ABDUL-AI"
+    )
 
 
 # ─────────────────────────────────────────────────────────────
