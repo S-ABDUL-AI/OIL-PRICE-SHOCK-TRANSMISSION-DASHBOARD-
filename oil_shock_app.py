@@ -931,7 +931,7 @@ with tab3:
         color = "color: #C8382A;" if isinstance(val, float) and val < 0 else "color: #1A7A2E;"
         return color
 
-    st.dataframe(irf_table.style.applymap(color_neg), use_container_width=True)
+    st.dataframe(irf_table.style.map(color_neg), use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
