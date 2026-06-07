@@ -3,7 +3,7 @@
 
 **Interactive econometric research tool exploring oil price shock transmission into public debt dynamics**
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://oil-shock-transmission.streamlit.app)
+[![Open App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://oil-price-shock-transmission-9xazdnfk5tnuaffap34ysp.streamlit.app/)
 
 ---
 
@@ -114,8 +114,8 @@ oil_contribution = fevd.decomp[debt_idx, :, oil_idx] * 100   # % per period
 ## Run Locally
 
 ```bash
-git clone https://github.com/S-ABDUL-AI/oil-shock-transmission.git
-cd oil-shock-transmission
+git clone https://github.com/S-ABDUL-AI/OIL-PRICE-SHOCK-TRANSMISSION-DASHBOARD-.git
+cd OIL-PRICE-SHOCK-TRANSMISSION-DASHBOARD-
 pip install -r requirements.txt
 streamlit run app.py
 ```
@@ -156,12 +156,10 @@ Data Scientist · Energy Economist · Development Economics Research
 
 ---
 
-## Related Portfolio Tools
+## Related Energy Portfolio Tools
 
-| Tool | Description |
-|---|---|
-| [California Grid Asset Risk Dashboard](https://share.streamlit.io/user/s-abdul-ai) | Wildfire vulnerability and asset risk scoring for electric utility infrastructure |
-| [Grid Investment Prioritization Engine](https://share.streamlit.io/user/s-abdul-ai) | Capital allocation optimization for grid modernization programs |
-| [Public Budget Allocation Tool](https://smart-resource-allocation-dashboard-eudzw5r2f9pbu4qyw3psez.streamlit.app) | Need-based government resource distribution with ministerial brief |
-| [Medicaid Access Risk Monitor](https://chpghrwawmvddoquvmniwm.streamlit.app) | ML-powered healthcare coverage gap analysis across 50 US states |
-| [GovFund Allocation Engine](https://impact-allocation-engine-ahxxrbgwmvyapwmifahk2b.streamlit.app) | Cost-effectiveness decision tool for public health funders |
+| Tool | Description | Live App |
+|------|-------------|----------|
+| California Grid Asset Risk Dashboard | Wildfire risk prediction and asset failure modeling for electric utility infrastructure | [Open App](https://california-grid-asset-risk-wildfire-vulnerability-dashboard-hm.streamlit.app/) |
+| Grid Investment Prioritization Engine | Benefit-cost optimization and capital portfolio planning for utility infrastructure investment | [Open App](https://grid-investment-prioritization-engine-hsyvnqi9iesad5met5pw7v.streamlit.app/) |
+| California Grid Demand Forecast | Time series load forecasting and EV/solar scenario planning for electric utility operations | [Open App](https://california-grid-demand-forecast-35hscpx2oxi3y7glsgkphj.streamlit.app/) |
