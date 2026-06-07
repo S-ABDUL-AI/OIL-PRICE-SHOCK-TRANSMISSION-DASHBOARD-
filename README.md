@@ -1,8 +1,7 @@
 # Oil Price Shock Transmission Dashboard
 ### Interactive Econometric Tool — MSc Economics Thesis, KNUST 2022
 
-**Interactive econometric research tool exploring oil price shock transmission into public debt dynamics**  
-Built by Sherriff Abdul-Hamid | poverty360.org
+**Interactive econometric research tool exploring oil price shock transmission into public debt dynamics**
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://oil-shock-transmission.streamlit.app)
 
@@ -149,21 +148,11 @@ Full numerical replication of thesis results requires the original IMF/World Ban
 
 ---
 
-## About the Author
+## Author
 
-**Sherriff Abdul-Hamid** is a development economist and data scientist with 10+ years of experience in quantitative research, policy analytics, and decision-support tools for public-sector and energy programs.
-
-- MSc Economics (Econometrics), KNUST
-- Harvard Business School · Senior Executive Program
-- Former Founder & CEO, Poverty 360 — 25,000+ beneficiaries
-- Directed $200M+ in resource allocation for USAID, UNDP, UKAID
-- **Obama Foundation Leaders Award** — Top 1.3% globally, 2023
-- **Mandela Washington Fellow** — Top 0.3%, U.S. Dept. of State, 2018
-
-**Connect:**  
-[LinkedIn](https://www.linkedin.com/in/abdul-hamid-sherriff-08583354/) ·
-[GitHub](https://github.com/S-ABDUL-AI) ·
-[Portfolio](https://share.streamlit.io/user/s-abdul-ai)
+**Sherriff Abdul-Hamid**
+Data Scientist · Energy Economist · Development Economics Research
+[poverty360.org](https://poverty360.org) | [LinkedIn](https://www.linkedin.com/in/abdul-hamid-sherriff-08583354/) | [GitHub](https://github.com/S-ABDUL-AI)
 
 ---
 
